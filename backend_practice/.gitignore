@@ -1,0 +1,14 @@
+# Backend
+backend/node_modules/
+backend/.env
+backend/public/temp/
+
+# Frontend
+frontend/node_modules/
+frontend/.env
+frontend/dist/
+
+# Common
+.vscode/
+.DS_Store
+*.log
