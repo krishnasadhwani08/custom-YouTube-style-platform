@@ -1,157 +1,95 @@
 import { useEffect, useState } from 'react'
 import API from '../api/axios'
 
-export default function Dashboard() {
+const STAT_CONFIG = [
+  { key: 'totalSubscribers', label: 'Subscribers', icon: '👥', color: '#7c5cfc' },
+  { key: 'totalViews',       label: 'Total Views',  icon: '👁',  color: '#e879f9' },
+  { key: 'totalVideos',      label: 'Videos',       icon: '🎬', color: '#38bdf8' },
+  { key: 'totalLikes',       label: 'Likes',        icon: '❤️',  color: '#fb7185' },
+]
 
+export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [videos, setVideos] = useState([])
 
-  useEffect(() => {
-    loadDashboard()
-  }, [])
+  useEffect(() => { loadDashboard() }, [])
 
   const loadDashboard = async () => {
-
     try {
-
-      const currentUserRes =
-        await API.get('/users/current-user')
-
-      const currentUser =
-        currentUserRes.data.data
-
-      const channelId = currentUser._id
-
-      const statsRes =
-        await API.get(`/dashboard/stats/${channelId}`)
-
-      const videosRes =
-        await API.get(`/dashboard/videos/${channelId}`)
-
+      const userRes = await API.get('/users/current-user')
+      const id = userRes.data.data._id
+      const [statsRes, videosRes] = await Promise.all([
+        API.get(`/dashboard/stats/${id}`),
+        API.get(`/dashboard/videos/${id}`)
+      ])
       setStats(statsRes.data.data)
-
       setVideos(videosRes.data.data)
-
     } catch (err) {
-
-      console.log(
-        err.response?.data || err.message
-      )
+      console.log(err.response?.data || err.message)
     }
   }
 
-  if (!stats) {
-
-    return (
-      <div className='ml-[240px] text-white p-10'>
-        Loading dashboard...
+  if (!stats) return (
+    <div className='page-wrapper'>
+      <div className='loading-state'>
+        <div className='spinner' />
+        <span>loading your stats…</span>
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
-
-    <div className='ml-[240px] min-h-screen bg-black text-white p-10'>
-
-      <h1 className='text-5xl font-black mb-10'>
-        Creator Dashboard
-      </h1>
-
-      <div className='grid grid-cols-4 gap-6 mb-12'>
-
-        <div className='bg-zinc-900 rounded-3xl p-6'>
-          <h2 className='text-zinc-400 text-lg mb-2'>
-            Subscribers
-          </h2>
-
-          <p className='text-4xl font-black text-neon'>
-            {stats.totalSubscribers}
-          </p>
+    <div className='page-wrapper'>
+      <header className='page-header'>
+        <div>
+          <h1 className='page-title'>Creator Studio</h1>
+          <p className='page-sub'>your numbers, your story</p>
         </div>
+      </header>
 
-        <div className='bg-zinc-900 rounded-3xl p-6'>
-          <h2 className='text-zinc-400 text-lg mb-2'>
-            Total Views
-          </h2>
-
-          <p className='text-4xl font-black text-neon'>
-            {stats.totalViews}
-          </p>
-        </div>
-
-        <div className='bg-zinc-900 rounded-3xl p-6'>
-          <h2 className='text-zinc-400 text-lg mb-2'>
-            Videos
-          </h2>
-
-          <p className='text-4xl font-black text-neon'>
-            {stats.totalVideos}
-          </p>
-        </div>
-
-        <div className='bg-zinc-900 rounded-3xl p-6'>
-          <h2 className='text-zinc-400 text-lg mb-2'>
-            Likes
-          </h2>
-
-          <p className='text-4xl font-black text-neon'>
-            {stats.totalLikes}
-          </p>
-        </div>
-
-      </div>
-
-      <h2 className='text-3xl font-black mb-8'>
-        Your Videos
-      </h2>
-
-      <div className='grid grid-cols-3 gap-8'>
-
-        {videos.map((video) => (
-
+      {/* Stat cards */}
+      <div className='stats-grid'>
+        {STAT_CONFIG.map(({ key, label, icon, color }, i) => (
           <div
-            key={video._id}
-            className='bg-zinc-900 rounded-3xl overflow-hidden'
+            key={key}
+            className='stat-card fade-up'
+            style={{ animationDelay: `${i * 80}ms`, '--accent-local': color }}
           >
-
-            <img
-              src={video.thumbnail}
-              alt={video.title}
-              className='w-full h-[220px] object-cover'
-            />
-
-            <div className='p-5'>
-
-              <h3 className='text-xl font-bold mb-2'>
-                {video.title}
-              </h3>
-
-              <p className='text-zinc-400 text-sm mb-3'>
-                {video.description}
-              </p>
-
-              <div className='flex justify-between text-zinc-500 text-sm'>
-
-                <span>
-                  👁 {video.views} views
-                </span>
-
-                <span>
-                  {video.isPublished
-                    ? 'Published'
-                    : 'Private'}
-                </span>
-
-              </div>
-
-            </div>
-
+            <span className='stat-icon'>{icon}</span>
+            <p className='stat-value'>{stats[key]?.toLocaleString() ?? 0}</p>
+            <p className='stat-label'>{label}</p>
+            <div className='stat-bar' />
           </div>
-
         ))}
-
       </div>
 
+      {/* Videos */}
+      <section className='section-block'>
+        <h2 className='section-title'>Your Videos</h2>
+        <div className='video-grid'>
+          {videos.map((video, i) => (
+            <div
+              key={video._id}
+              className='video-card dashboard-card fade-up'
+              style={{ animationDelay: `${i * 60}ms` }}
+            >
+              <div className='thumbnail-wrap'>
+                <img src={video.thumbnail} alt={video.title} className='thumbnail' />
+                <span className={`pub-badge ${video.isPublished ? 'pub' : 'priv'}`}>
+                  {video.isPublished ? 'Live' : 'Private'}
+                </span>
+              </div>
+              <div className='card-body'>
+                <h3 className='card-title'>{video.title}</h3>
+                <p className='card-desc'>{video.description}</p>
+                <div className='card-footer'>
+                  <span className='view-count'>👁 {video.views?.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

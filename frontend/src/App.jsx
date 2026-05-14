@@ -1,31 +1,133 @@
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate
+} from 'react-router-dom'
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
+
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Profile from './pages/Profile'
 import Upload from './pages/Upload'
 import Dashboard from './pages/Dashboard'
-import Tweet from './pages/Tweet'
 import WatchVideo from './pages/WatchVideo'
-export default function App(){
-  return(
-    <BrowserRouter>
-      <Navbar/>
-      <Sidebar/>
+import Tweets from './pages/Tweets'
 
-      <Routes>
-        <Route path='/' element={<Home/>}/>
-        <Route path='/login' element={<Login/>}/>
-        <Route path='/register' element={<Register />} />
-        <Route path='/profile' element={<Profile />} />
-        <Route path='/upload' element={<Upload />} />
-        <Route path='/dashboard' element={<Dashboard />} />
-        <Route path='/tweet' element={<Tweet />} />
-        <Route path='/watch/:videoId' element={<WatchVideo />} />
-      </Routes>
+export default function App() {
+
+  const raw = localStorage.getItem('user')
+
+  const user = raw
+    ? JSON.parse(raw)
+    : null
+
+  const ProtectedRoute = ({
+    children
+  }) => {
+
+    if (!user) {
+      return <Navigate to='/login' />
+    }
+
+    return children
+  }
+
+  return (
+
+    <BrowserRouter>
+
+      <div className='app-shell'>
+
+        {user && <Sidebar />}
+
+        <main
+          className={`main-content ${
+            user
+              ? 'with-sidebar'
+              : 'full-width'
+          }`}
+        >
+
+          <Routes>
+
+            <Route
+              path='/'
+              element={<Home />}
+            />
+
+            <Route
+              path='/login'
+              element={
+                user
+                  ? <Navigate to='/' />
+                  : <Login />
+              }
+            />
+
+            <Route
+              path='/register'
+              element={
+                user
+                  ? <Navigate to='/' />
+                  : <Register />
+              }
+            />
+
+            <Route
+              path='/watch/:videoId'
+              element={<WatchVideo />}
+            />
+
+            <Route
+              path='/profile'
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path='/upload'
+              element={
+                <ProtectedRoute>
+                  <Upload />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path='/dashboard'
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path='/tweets'
+              element={
+                <ProtectedRoute>
+                  <Tweets />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path='*'
+              element={<Navigate to='/' />}
+            />
+
+          </Routes>
+
+        </main>
+
+      </div>
+
     </BrowserRouter>
   )
 }

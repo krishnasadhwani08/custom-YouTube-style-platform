@@ -8,96 +8,185 @@ export default function Home() {
 
   const [videos, setVideos] = useState([])
 
+  const [loading, setLoading] = useState(true)
+
   useEffect(() => {
+
     fetchVideos()
+
   }, [])
 
   const fetchVideos = async () => {
 
     try {
 
-      const response =
-        await API.get('/videos')
+      const res = await API.get('/videos')
 
-      setVideos(response.data.data)
+      setVideos(res.data.data)
 
     } catch (err) {
 
       console.log(
         err.response?.data || err.message
       )
+
+    } finally {
+
+      setLoading(false)
     }
   }
 
   return (
 
-    <div className='ml-[240px] min-h-screen bg-black text-white p-8'>
+    <div className='page-wrapper fade-up'>
 
-      <h1 className='text-5xl font-black mb-10'>
-        GenZTube
-      </h1>
+      {/* Header */}
 
-      <div className='grid grid-cols-3 gap-8'>
+      <header className='page-header'>
 
-        {videos.map((video) => (
+        <div>
 
-          <Link
-            key={video._id}
-            to={`/watch/${video._id}`}
-            className='bg-zinc-900 rounded-3xl overflow-hidden hover:scale-[1.02] transition duration-300 shadow-2xl'
-          >
+          <h1 className='page-title'>
+            For You
+          </h1>
 
-            <img
-              src={video.thumbnail}
-              alt={video.title}
-              className='w-full h-[220px] object-cover'
+          <p className='page-sub'>
+            what's trending rn
+          </p>
+
+        </div>
+
+        <div className='header-pill'>
+
+          {videos.length} videos
+
+        </div>
+
+      </header>
+
+      {/* Loading */}
+
+      {loading ? (
+
+        <div className='skeleton-grid'>
+
+          {[...Array(6)].map((_, i) => (
+
+            <div
+              key={i}
+              className='skeleton-card'
+              style={{
+                animationDelay: `${i * 80}ms`
+              }}
             />
 
-            <div className='p-5'>
+          ))}
 
-              <div className='flex items-center gap-3 mb-4'>
+        </div>
+
+      ) : (
+
+        <div className='video-grid'>
+
+          {videos.map((video, i) => (
+
+            <Link
+              key={video._id}
+              to={`/watch/${video._id}`}
+              className='video-card'
+              style={{
+                animationDelay: `${i * 60}ms`
+              }}
+            >
+
+              {/* Thumbnail */}
+
+              <div className='thumbnail-wrap'>
 
                 <img
-                  src={video.owner?.avatar}
-                  alt='avatar'
-                  className='w-12 h-12 rounded-full object-cover'
+                  src={video.thumbnail}
+                  alt={video.title}
+                  className='thumbnail'
                 />
 
-                <div>
+                <div className='thumbnail-overlay' />
 
-                  <h2 className='font-bold text-lg'>
-                    {video.title}
-                  </h2>
+                <span className='view-badge'>
 
-                  <p className='text-zinc-400 text-sm'>
-                    @{video.owner?.userName}
-                  </p>
+                  👁 {video.views?.toLocaleString()}
+
+                </span>
+
+              </div>
+
+              {/* Card Body */}
+
+              <div className='card-body'>
+
+                <div className='card-meta'>
+
+                  <img
+                    src={
+                      video.owner?.avatar ||
+                      'https://via.placeholder.com/100'
+                    }
+                    alt='avatar'
+                    className='avatar-sm'
+                  />
+
+                  <div className='card-text'>
+
+                    <h2 className='card-title'>
+
+                      {video.title}
+
+                    </h2>
+
+                    <p className='card-channel'>
+
+                      @{video.owner?.userName}
+
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <div className='card-footer'>
+
+                  <span className='view-count'>
+
+                    {video.views?.toLocaleString()} views
+
+                  </span>
+
+                  <span className='card-date'>
+
+                    {
+                      new Date(
+                        video.createdAt
+                      ).toLocaleDateString(
+                        'en',
+                        {
+                          month: 'short',
+                          day: 'numeric'
+                        }
+                      )
+                    }
+
+                  </span>
 
                 </div>
 
               </div>
 
-              <div className='flex justify-between text-zinc-500 text-sm'>
+            </Link>
 
-                <span>
-                  👁 {video.views} views
-                </span>
+          ))}
 
-                <span>
-                  {new Date(
-                    video.createdAt
-                  ).toLocaleDateString()}
-                </span>
+        </div>
 
-              </div>
-
-            </div>
-
-          </Link>
-
-        ))}
-
-      </div>
+      )}
 
     </div>
   )
