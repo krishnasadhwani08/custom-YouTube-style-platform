@@ -15,6 +15,7 @@ import Upload from './pages/Upload'
 import Dashboard from './pages/Dashboard'
 import WatchVideo from './pages/WatchVideo'
 import Tweets from './pages/Tweets'
+import Logout from './pages/Logout'
 
 export default function App() {
 
@@ -120,6 +121,11 @@ export default function App() {
             <Route
               path='*'
               element={<Navigate to='/' />}
+            />
+
+            <Route
+              path='/logout'
+              element={<Logout />}
             />
 
           </Routes>

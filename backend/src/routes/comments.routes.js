@@ -4,7 +4,7 @@ import {
     addComment, 
     updateComment,
     deleteComment
-} from "../controllers/dashboard.controller.js"
+} from "../controllers/comments.controller.js"
 import {verifyJWT} from "../middlewares/auth.middleware.js"
 
 
