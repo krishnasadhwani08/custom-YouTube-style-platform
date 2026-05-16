@@ -370,7 +370,7 @@ export default function WatchVideo() {
               }`}
             >
 
-              ❤️ Like ({likeCount})
+              Like ({likeCount})
 
             </button>
 
@@ -536,7 +536,7 @@ export default function WatchVideo() {
                     }`}
                   >
 
-                    ❤️ {
+                     {
                       comment.likesCount || 0
                     }
 

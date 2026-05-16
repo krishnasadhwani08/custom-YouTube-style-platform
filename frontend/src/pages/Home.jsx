@@ -20,14 +20,18 @@ export default function Home() {
 
     try {
 
-      const res = await API.get('/videos')
+      const res =
+        await API.get('/videos')
 
-      setVideos(res.data.data)
+      setVideos(
+        res.data.data || []
+      )
 
     } catch (err) {
 
       console.log(
-        err.response?.data || err.message
+        err.response?.data ||
+        err.message
       )
 
     } finally {
@@ -64,7 +68,7 @@ export default function Home() {
 
       </header>
 
-      {/* Loading */}
+      {/* Loading State */}
 
       {loading ? (
 
@@ -76,7 +80,8 @@ export default function Home() {
               key={i}
               className='skeleton-card'
               style={{
-                animationDelay: `${i * 80}ms`
+                animationDelay:
+                  `${i * 80}ms`
               }}
             />
 
@@ -84,7 +89,25 @@ export default function Home() {
 
         </div>
 
+      ) : videos.length === 0 ? (
+
+        /* Empty State */
+
+        <div className='empty-state'>
+
+          <h2>
+            no videos yet
+          </h2>
+
+          <p>
+            the algorithm is sleeping
+          </p>
+
+        </div>
+
       ) : (
+
+        /* Video Grid */
 
         <div className='video-grid'>
 
@@ -93,9 +116,10 @@ export default function Home() {
             <Link
               key={video._id}
               to={`/watch/${video._id}`}
-              className='video-card'
+              className='video-card fade-up'
               style={{
-                animationDelay: `${i * 60}ms`
+                animationDelay:
+                  `${i * 70}ms`
               }}
             >
 
@@ -109,11 +133,17 @@ export default function Home() {
                   className='thumbnail'
                 />
 
+                {/* Overlay */}
+
                 <div className='thumbnail-overlay' />
+
+                {/* Views */}
 
                 <span className='view-badge'>
 
-                  👁 {video.views?.toLocaleString()}
+                  👁 {' '}
+
+                  {video.views?.toLocaleString()}
 
                 </span>
 
@@ -123,18 +153,21 @@ export default function Home() {
 
               <div className='card-body'>
 
-                <div className='card-meta'>
+                {/* Channel Row */}
+
+                <div className='channel-row'>
 
                   <img
                     src={
                       video.owner?.avatar ||
+
                       'https://via.placeholder.com/100'
                     }
                     alt='avatar'
-                    className='avatar-sm'
+                    className='channel-avatar'
                   />
 
-                  <div className='card-text'>
+                  <div className='channel-meta'>
 
                     <h2 className='card-title'>
 
@@ -144,7 +177,9 @@ export default function Home() {
 
                     <p className='card-channel'>
 
-                      @{video.owner?.userName}
+                      @
+                      {video.owner?.userName ||
+                        'unknown'}
 
                     </p>
 
@@ -152,11 +187,15 @@ export default function Home() {
 
                 </div>
 
+                {/* Footer */}
+
                 <div className='card-footer'>
 
                   <span className='view-count'>
 
-                    {video.views?.toLocaleString()} views
+                    {video.views?.toLocaleString()}
+
+                    {' '}views
 
                   </span>
 

@@ -9,6 +9,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 /* ─────────────────────────────────────────────
    Cookie Options
@@ -29,7 +30,7 @@ const cookieOptions = {
             : "lax",
 
     path: "/"
-}
+};
 
 /* ─────────────────────────────────────────────
    Generate Tokens
@@ -76,35 +77,48 @@ const registerUser =
 asyncHandler(async (req, res) => {
 
     const {
+
         email,
         password,
         fullName,
         userName
+
     } = req.body;
 
     if (
+
         [
+
             email,
             password,
             fullName,
             userName
+
         ].some(
+
             (field) =>
+
                 !field ||
+
                 field.trim() === ""
         )
     ) {
 
         throw new ApiError(
+
             400,
+
             "All fields are required"
         );
     }
 
     const existedUser =
         await User.findOne({
+
             $or: [
+
                 { email },
+
                 { userName }
             ]
         });
@@ -112,7 +126,9 @@ asyncHandler(async (req, res) => {
     if (existedUser) {
 
         throw new ApiError(
+
             409,
+
             "User already exists"
         );
     }
@@ -126,7 +142,9 @@ asyncHandler(async (req, res) => {
     if (!avatarLocalPath) {
 
         throw new ApiError(
+
             400,
+
             "Avatar is required"
         );
     }
@@ -138,15 +156,19 @@ asyncHandler(async (req, res) => {
 
     const coverImage =
         coverImageLocalPath
+
             ? await uploadOnCloudinary(
                 coverImageLocalPath
               )
+
             : null;
 
     if (!avatar?.url) {
 
         throw new ApiError(
+
             400,
+
             "Avatar upload failed"
         );
     }
@@ -166,23 +188,200 @@ asyncHandler(async (req, res) => {
             password,
 
             userName:
-                userName.toLowerCase()
+                userName.toLowerCase(),
+
+            isVerified: false
         });
+
+    /* Verify Token */
+
+    const verifyToken =
+        jwt.sign(
+
+            {
+
+                _id: user._id
+            },
+
+            process.env
+                .ACCESS_TOKEN_SECRET,
+
+            {
+
+                expiresIn: "1d"
+            }
+        );
+
+    /* Frontend URL */
+
+    const frontendUrl =
+        process.env.CORS_ORIGIN;
+
+    if (!frontendUrl) {
+
+        throw new ApiError(
+            500,
+            "CORS_ORIGIN missing"
+        );
+    }
+
+    /* Verify Link */
+
+    const verifyLink =
+`${frontendUrl}/verify/${verifyToken}`;
+
+    console.log(
+        "Verify Link:",
+        verifyLink
+    );
+
+    /* Send Email */
+
+    await sendEmail(
+
+        user.email,
+
+        "Verify Your GenZTube Account",
+
+        `
+        <div style="font-family:sans-serif;padding:30px;background:#0f0f0f;color:white;">
+
+            <h1 style="color:#00e5ff;">
+                Welcome to GenZTube
+            </h1>
+
+            <p>
+                Verify your account to continue
+            </p>
+
+            <a
+                href="${verifyLink}"
+                style="
+                    display:inline-block;
+                    margin-top:20px;
+                    padding:14px 24px;
+                    background:linear-gradient(90deg,#00e5ff,#ff00aa);
+                    color:white;
+                    text-decoration:none;
+                    border-radius:12px;
+                    font-weight:bold;
+                "
+            >
+                Verify Account
+            </a>
+
+            <p style="margin-top:30px;color:#888;">
+                This link expires in 24 hours
+            </p>
+
+        </div>
+        `
+    );
 
     const createdUser =
         await User.findById(
             user._id
         ).select(
+
             "-password -refreshToken"
         );
 
     return res
         .status(201)
         .json(
+
             new ApiResponse(
+
                 201,
+
                 createdUser,
-                "User registered successfully"
+
+                "User registered successfully. Verification email sent."
+            )
+        );
+});
+
+/* ─────────────────────────────────────────────
+   Verify Email
+───────────────────────────────────────────── */
+
+const verifyEmail =
+asyncHandler(async (req, res) => {
+
+    const { token } =
+        req.params;
+
+    if (!token) {
+
+        throw new ApiError(
+            400,
+            "Verification token missing"
+        );
+    }
+
+    let decoded;
+
+    try {
+
+        decoded =
+            jwt.verify(
+
+                token,
+
+                process.env
+                    .ACCESS_TOKEN_SECRET
+            );
+
+    } catch (error) {
+
+        console.log(error);
+
+        throw new ApiError(
+            401,
+            "Invalid or expired token"
+        );
+    }
+
+    const user =
+        await User.findById(
+            decoded?._id
+        );
+
+    if (!user) {
+
+        throw new ApiError(
+            404,
+            "User not found"
+        );
+    }
+
+    if (user.isVerified) {
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    {},
+                    "Email already verified"
+                )
+            );
+    }
+
+    user.isVerified = true;
+
+    await user.save({
+
+        validateBeforeSave: false
+    });
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {},
+                "Email verified successfully"
             )
         );
 });
@@ -210,8 +409,11 @@ asyncHandler(async (req, res) => {
 
     const user =
         await User.findOne({
+
             $or: [
+
                 { email },
+
                 { userName }
             ]
         });
@@ -221,6 +423,14 @@ asyncHandler(async (req, res) => {
         throw new ApiError(
             404,
             "User not found"
+        );
+    }
+
+    if (!user.isVerified) {
+
+        throw new ApiError(
+            401,
+            "Please verify your email first"
         );
     }
 
@@ -238,8 +448,10 @@ asyncHandler(async (req, res) => {
     }
 
     const {
+
         accessToken,
         refreshToken
+
     } =
         await generateAccessAndRefreshToken(
             user._id
@@ -326,557 +538,6 @@ asyncHandler(async (req, res) => {
 });
 
 /* ─────────────────────────────────────────────
-   Refresh Token
-───────────────────────────────────────────── */
-
-const refreshAccessToken =
-asyncHandler(async (req, res) => {
-
-    const incomingRefreshToken =
-        req.cookies?.refreshToken ||
-        req.body?.refreshToken;
-
-    if (!incomingRefreshToken) {
-
-        throw new ApiError(
-            401,
-            "Unauthorized request"
-        );
-    }
-
-    let decodedToken;
-
-    try {
-
-        decodedToken =
-            jwt.verify(
-                incomingRefreshToken,
-                process.env
-                    .REFRESH_TOKEN_SECRET
-            );
-
-    } catch {
-
-        throw new ApiError(
-            401,
-            "Invalid refresh token"
-        );
-    }
-
-    const user =
-        await User.findById(
-            decodedToken?._id
-        );
-
-    if (!user) {
-
-        throw new ApiError(
-            401,
-            "Invalid refresh token"
-        );
-    }
-
-    if (
-        incomingRefreshToken !==
-        user?.refreshToken
-    ) {
-
-        throw new ApiError(
-            401,
-            "Refresh token expired"
-        );
-    }
-
-    const options = {
-        ...cookieOptions
-    };
-
-    const {
-        accessToken,
-        refreshToken
-    } =
-        await generateAccessAndRefreshToken(
-            user._id
-        );
-
-    return res
-
-        .status(200)
-
-        .cookie(
-            "accessToken",
-            accessToken,
-            options
-        )
-
-        .cookie(
-            "refreshToken",
-            refreshToken,
-            options
-        )
-
-        .json(
-            new ApiResponse(
-                200,
-                {
-                    accessToken
-                },
-                "Access token refreshed"
-            )
-        );
-});
-
-/* ─────────────────────────────────────────────
-   Change Password
-───────────────────────────────────────────── */
-
-const changeCurrentPassword =
-asyncHandler(async (req, res) => {
-
-    const {
-        oldPassword,
-        newPassword
-    } = req.body;
-
-    const user =
-        await User.findById(
-            req.user?._id
-        );
-
-    const isPasswordCorrect =
-        await user.isPasswordCorrect(
-            oldPassword
-        );
-
-    if (!isPasswordCorrect) {
-
-        throw new ApiError(
-            400,
-            "Invalid old password"
-        );
-    }
-
-    user.password =
-        newPassword;
-
-    await user.save();
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                {},
-                "Password changed successfully"
-            )
-        );
-});
-
-/* ─────────────────────────────────────────────
-   Get Current User
-───────────────────────────────────────────── */
-
-const getCurrentUser =
-asyncHandler(async (req, res) => {
-
-    const user =
-        await User.findById(
-            req.user?._id
-        ).select(
-            "-password -refreshToken"
-        );
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                user,
-                "Current user fetched"
-            )
-        );
-});
-
-/* ─────────────────────────────────────────────
-   Update Account
-───────────────────────────────────────────── */
-
-const updateAccountDetails =
-asyncHandler(async (req, res) => {
-
-    const {
-        fullName,
-        email
-    } = req.body;
-
-    if (!fullName || !email) {
-
-        throw new ApiError(
-            400,
-            "All fields required"
-        );
-    }
-
-    const user =
-        await User.findByIdAndUpdate(
-
-            req.user?._id,
-
-            {
-                $set: {
-                    fullName,
-                    email
-                }
-            },
-
-            {
-                new: true
-            }
-
-        ).select(
-            "-password -refreshToken"
-        );
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                user,
-                "Account updated successfully"
-            )
-        );
-});
-
-/* ─────────────────────────────────────────────
-   Update Avatar
-───────────────────────────────────────────── */
-
-const updateUserAvatar =
-asyncHandler(async (req, res) => {
-
-    const avatarLocalPath =
-        req.file?.path;
-
-    if (!avatarLocalPath) {
-
-        throw new ApiError(
-            400,
-            "Avatar file missing"
-        );
-    }
-
-    const avatar =
-        await uploadOnCloudinary(
-            avatarLocalPath
-        );
-
-    if (!avatar?.url) {
-
-        throw new ApiError(
-            400,
-            "Avatar upload failed"
-        );
-    }
-
-    const user =
-        await User.findByIdAndUpdate(
-
-            req.user?._id,
-
-            {
-                $set: {
-                    avatar: avatar.url
-                }
-            },
-
-            {
-                new: true
-            }
-
-        ).select(
-            "-password -refreshToken"
-        );
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                user,
-                "Avatar updated successfully"
-            )
-        );
-});
-
-/* ─────────────────────────────────────────────
-   Update Cover Image
-───────────────────────────────────────────── */
-
-const updateUserCoverImage =
-asyncHandler(async (req, res) => {
-
-    const coverImageLocalPath =
-        req.file?.path;
-
-    if (!coverImageLocalPath) {
-
-        throw new ApiError(
-            400,
-            "Cover image missing"
-        );
-    }
-
-    const coverImage =
-        await uploadOnCloudinary(
-            coverImageLocalPath
-        );
-
-    if (!coverImage?.url) {
-
-        throw new ApiError(
-            400,
-            "Cover image upload failed"
-        );
-    }
-
-    const user =
-        await User.findByIdAndUpdate(
-
-            req.user?._id,
-
-            {
-                $set: {
-                    coverImage:
-                        coverImage.url
-                }
-            },
-
-            {
-                new: true
-            }
-
-        ).select(
-            "-password -refreshToken"
-        );
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                user,
-                "Cover image updated"
-            )
-        );
-});
-
-/* ─────────────────────────────────────────────
-   Channel Profile
-───────────────────────────────────────────── */
-
-const getUserChannelProfile =
-asyncHandler(async (req, res) => {
-
-    const { userName } =
-        req.params;
-
-    if (!userName?.trim()) {
-
-        throw new ApiError(
-            400,
-            "Username missing"
-        );
-    }
-
-    const channel =
-        await User.aggregate([
-
-            {
-                $match: {
-                    userName:
-                        userName.toLowerCase()
-                }
-            },
-
-            {
-                $lookup: {
-                    from: "subscriptions",
-                    localField: "_id",
-                    foreignField: "channel",
-                    as: "subscribers"
-                }
-            },
-
-            {
-                $lookup: {
-                    from: "subscriptions",
-                    localField: "_id",
-                    foreignField: "subscriber",
-                    as: "subscribedTo"
-                }
-            },
-
-            {
-                $addFields: {
-
-                    subscribersCount: {
-                        $size: "$subscribers"
-                    },
-
-                    channelsSubscribedToCount: {
-                        $size: "$subscribedTo"
-                    },
-
-                    isSubscribed: {
-                        $cond: {
-
-                            if: {
-                                $in: [
-                                    new mongoose.Types.ObjectId(
-                                        req.user?._id
-                                    ),
-                                    "$subscribers.subscriber"
-                                ]
-                            },
-
-                            then: true,
-
-                            else: false
-                        }
-                    }
-                }
-            },
-
-            {
-                $project: {
-
-                    fullName: 1,
-
-                    userName: 1,
-
-                    subscribersCount: 1,
-
-                    channelsSubscribedToCount: 1,
-
-                    isSubscribed: 1,
-
-                    avatar: 1,
-
-                    coverImage: 1,
-
-                    email: 1
-                }
-            }
-        ]);
-
-    if (!channel?.length) {
-
-        throw new ApiError(
-            404,
-            "Channel not found"
-        );
-    }
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                channel[0],
-                "Channel profile fetched"
-            )
-        );
-});
-
-/* ─────────────────────────────────────────────
-   Watch History
-───────────────────────────────────────────── */
-
-const getWatchHistory =
-asyncHandler(async (req, res) => {
-
-    const user =
-        await User.aggregate([
-
-            {
-                $match: {
-                    _id:
-                    new mongoose.Types.ObjectId(
-                        req.user._id
-                    )
-                }
-            },
-
-            {
-                $lookup: {
-
-                    from: "videos",
-
-                    localField:
-                        "watchHistory",
-
-                    foreignField: "_id",
-
-                    as: "watchHistory",
-
-                    pipeline: [
-
-                        {
-                            $lookup: {
-
-                                from: "users",
-
-                                localField:
-                                    "owner",
-
-                                foreignField:
-                                    "_id",
-
-                                as: "owner",
-
-                                pipeline: [
-
-                                    {
-                                        $project: {
-
-                                            fullName: 1,
-
-                                            userName: 1,
-
-                                            avatar: 1
-                                        }
-                                    }
-                                ]
-                            }
-                        },
-
-                        {
-                            $addFields: {
-
-                                owner: {
-                                    $first:
-                                        "$owner"
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        ]);
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                user[0]?.watchHistory,
-                "Watch history fetched"
-            )
-        );
-});
-
-/* ─────────────────────────────────────────────
    Exports
 ───────────────────────────────────────────── */
 
@@ -884,23 +545,9 @@ export {
 
     registerUser,
 
+    verifyEmail,
+
     loginUser,
 
-    logoutUser,
-
-    refreshAccessToken,
-
-    changeCurrentPassword,
-
-    getCurrentUser,
-
-    updateAccountDetails,
-
-    updateUserAvatar,
-
-    updateUserCoverImage,
-
-    getUserChannelProfile,
-
-    getWatchHistory
+    logoutUser
 };
