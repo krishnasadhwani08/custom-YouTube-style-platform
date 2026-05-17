@@ -20,7 +20,25 @@ const app = express();
 
 app.use(
     cors({
-        origin: process.env.CORS_ORIGIN.split(","),
+        origin: function (origin, callback) {
+
+            const allowedOrigins = [
+                "http://localhost:5173",
+                "https://custom-you-tube-style-platform-sv2wq65sj.vercel.app"
+            ];
+
+            // allow requests with no origin
+            // like mobile apps or Postman
+            if (!origin) {
+                return callback(null, true);
+            }
+
+            if (allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
 
         credentials: true
     })
