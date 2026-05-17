@@ -12,7 +12,7 @@ import Sidebar from './components/Sidebar'
 
 import Home from './pages/Home'
 import Login from './pages/Login'
-import Register from './pages/Register'
+import Register from './pages/register'
 import Profile from './pages/Profile'
 import Upload from './pages/Upload'
 import Dashboard from './pages/Dashboard'
