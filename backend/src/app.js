@@ -24,7 +24,7 @@ app.use(
 
             const allowedOrigins = [
                 "http://localhost:5173",
-                "https://custom-you-tube-style-platform-m03yy3ymq.vercel.app"
+                "https://custom-you-tube-style-pl-git-ca05b2-krishnasadhwani08s-projects.vercel.app"
             ];
 
             // allow requests with no origin
